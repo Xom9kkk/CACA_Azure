@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Event Booking App</title>
+</head>
+<body>
+    <h1>Event Booking App</h1>
+    <p>The application is running!</p>
+    <button onclick="checkHealth()">Check database connection</button>
+    <p id="result"></p>
+
+    <script>
+        async function checkHealth() {
+            const result = document.getElementById("result");
+            result.textContent = "Checking...";
+            const response = await fetch("/health");
+            const data = await response.json();
+            result.textContent = data.db === "connected"
+                ? "✅ Database is connected"
+                : "❌ Database is not connected: " + data.error;
+        }
+    </script>
+</body>
+</html>

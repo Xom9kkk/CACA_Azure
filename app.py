@@ -1,34 +1,22 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from sqlalchemy import create_engine, text
 
 load_dotenv()
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set (see .env.example)")
+
 app = Flask(__name__)
-engine = create_engine(os.getenv("DATABASE_URL"))
+engine = create_engine(DATABASE_URL)
 
 
 @app.route("/")
 def index():
-    return """
-    <h1>Event Booking App</h1>
-    <p>The application is running!</p>
-    <button onclick="checkHealth()">Check database connection</button>
-    <p id="result"></p>
-    <script>
-        async function checkHealth() {
-            const result = document.getElementById("result");
-            result.textContent = "Checking...";
-            const response = await fetch("/health");
-            const data = await response.json();
-            result.textContent = data.database === "connected"
-                ? "✅ Database is connected"
-                : "❌ Database is not connected: " + data.error;
-        }
-    </script>
-    """
+    return render_template("index.html")
 
 
 @app.route("/health")
@@ -36,9 +24,9 @@ def health():
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-        return jsonify(status="ok", database="connected")
+        return jsonify(status="ok", db="connected")
     except Exception as e:
-        return jsonify(status="error", database="disconnected", error=str(e)), 503
+        return jsonify(status="error", db="disconnected", error=str(e)), 503
 
 
 if __name__ == "__main__":
