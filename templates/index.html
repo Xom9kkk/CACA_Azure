@@ -2,24 +2,101 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Event Booking App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Station 7 · Event Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
 <body>
-    <h1>Event Booking App</h1>
-    <p>The application is running!</p>
-    <button onclick="checkHealth()">Check database connection</button>
-    <p id="result"></p>
+<canvas id="dust" aria-hidden="true"></canvas>
 
-    <script>
-        async function checkHealth() {
-            const result = document.getElementById("result");
-            result.textContent = "Checking...";
-            const response = await fetch("/health");
-            const data = await response.json();
-            result.textContent = data.db === "connected"
-                ? "✅ Database is connected"
-                : "❌ Database is not connected: " + data.error;
-        }
-    </script>
+<div class="wrap">
+    <div class="layout">
+        <aside class="side panel k">
+            <div class="logo"><b>◆</b>Station 7</div>
+            <input id="search" class="search" type="search" placeholder="search the tunnels_" aria-label="Search events">
+            <button id="new-event-btn" class="btn" type="button">+ Post event</button>
+
+            <div>
+                <div class="lbl side-title">Lines</div>
+                <div id="cat-list" class="cats"></div>
+            </div>
+
+            <div>
+                <div class="lbl side-title">When</div>
+                <div id="date-filters" class="dates">
+                    <button class="chip on" type="button" data-range="any">Any date</button>
+                    <button class="chip" type="button" data-range="week">This week</button>
+                    <button class="chip" type="button" data-range="month">This month</button>
+                </div>
+            </div>
+
+            <div class="azure">
+                <div class="lbl side-title">Azure</div>
+                <div id="azure-db" class="lbl"><span class="led"></span>Checking database...</div>
+                <div class="lbl">Region · <span id="azure-region">...</span></div>
+                <div class="lbl">Revision · <span id="azure-rev">...</span></div>
+            </div>
+        </aside>
+
+        <main>
+            <section id="hero"></section>
+            <div id="grid" class="grid"></div>
+            <div id="empty-state" class="empty panel" hidden>
+                <div class="H">Nothing on this line</div>
+                <p class="lbl">Try another search or filter, or post your own event.</p>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="event-modal" class="overlay" role="dialog" aria-modal="true">
+    <div class="modal panel k">
+        <button class="close" type="button" data-close aria-label="Close">✕</button>
+        <div class="modal-body"></div>
+    </div>
+</div>
+
+<div id="form-modal" class="overlay" role="dialog" aria-modal="true">
+    <div class="modal modal-form panel k">
+        <button class="close" type="button" data-close aria-label="Close">✕</button>
+        <div class="lbl" id="form-kicker">New event</div>
+        <h2 class="H" id="form-title">Post an event</h2>
+        <form id="event-form" novalidate>
+            <label class="lbl">Title<input class="field" name="title" maxlength="120" required></label>
+            <label class="lbl">Description<textarea class="field" name="description" maxlength="2000" rows="3"></textarea></label>
+            <div class="form-row">
+                <label class="lbl">Category<select class="field" name="category"></select></label>
+                <label class="lbl">Date &amp; time<input class="field" name="starts_at" type="datetime-local" required></label>
+            </div>
+            <label class="lbl">Location<input class="field" name="location" maxlength="120" required></label>
+            <div class="form-row">
+                <label class="lbl">Price, zł<input class="field" name="price" type="number" min="0" max="100000" step="0.01" value="0" required></label>
+                <label class="lbl">Capacity<input class="field" name="capacity" type="number" min="1" max="10000" step="1" value="50" required></label>
+            </div>
+            <p class="form-error" id="form-error"></p>
+            <div class="row">
+                <button class="btn" type="submit" id="form-submit">Post event</button>
+                <button class="btn ghost" type="button" data-close>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="confirm-modal" class="overlay" role="alertdialog" aria-modal="true">
+    <div class="modal modal-small panel k">
+        <h2 class="H">Are you sure?</h2>
+        <p id="confirm-text"></p>
+        <div class="row">
+            <button class="btn" type="button" id="confirm-yes">Delete</button>
+            <button class="btn ghost" type="button" id="confirm-no">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
 </body>
 </html>
