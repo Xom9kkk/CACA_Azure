@@ -359,7 +359,7 @@ async function loadAzureInfo() {
     try {
         const info = await api("GET", "/api/info");
         $("#azure-region").textContent = info.region;
-        $("#azure-rev").textContent = info.replica;
+        $("#azure-rev").textContent = info.version;
     } catch {
         $("#azure-region").textContent = $("#azure-rev").textContent = "unknown";
     }

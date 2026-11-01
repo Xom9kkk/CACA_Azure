@@ -210,10 +210,10 @@ def region_from_host(host):
 @api.get("/info")
 def info():
     # Express environments don't set CONTAINER_APP_* variables, so the region
-    # comes from the public host name and the replica from the container host name
+    # comes from the public host name and the version is baked into the image
     return jsonify(
         region=region_from_host(request.headers.get("X-Forwarded-Host") or request.host),
-        replica=os.getenv("CONTAINER_APP_REPLICA_NAME") or os.getenv("HOSTNAME") or "local",
+        version=os.getenv("APP_VERSION") or "local",
     )
 
 
