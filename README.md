@@ -1,63 +1,159 @@
-# Event Booking App
+# Event Booking App — "Station 7"
 
-Lab 1 — local 3-tier application in Docker Desktop: Flask app + PostgreSQL,
-each in its own container.
+A 3-tier event booking application: a Flask web app with an HTML/JS frontend
+and a PostgreSQL database. It runs in a container on **Azure Container Apps**,
+uses **Azure Database for PostgreSQL Flexible Server**, and images are built
+and pushed to **Azure Container Registry** by **GitHub Actions**.
 
-- `GET /` — start page with a "Check database connection" button
-- `GET /health` — `{"status": "ok", "db": "connected"}`
+Live demo: https://eventbooking-app.politeforest-0f266ae4.switzerlandnorth.azurecontainerapps.io
+
+## Features
+
+- Event board with search, category filter (Music, Tech, Sport, Art, Food, Party)
+  and date filter (any date / this week / this month)
+- Countdown to the next event
+- Event details in a modal window (link `/#event-<id>` opens it directly)
+- Create, edit and delete events (full CRUD)
+- Seat booking (1–5 tickets) with a booking code; overbooking is not possible
+- Azure status block: database connection, region and image version
+- Demo events are added automatically when the database is empty
+
+## Architecture
+
+```
+GitHub repo ──► GitHub Actions ──► Azure Container Registry ──► Azure Container Apps ──► Azure PostgreSQL
+ (push main)    (build & push)      eventbookingacr89973          eventbooking-app        eventbooking-pgdb
+```
+
+- The image is built for `linux/amd64` and tagged with the commit SHA.
+- Publishing a new image to Container Apps is done manually in the portal.
+- Database credentials are never stored in the image or in git; they are
+  passed as environment variables (Container Apps secrets in Azure, `.env` locally).
+
+## Project structure
+
+```
+app.py               Flask app factory, / and /health routes
+api.py               JSON API: events CRUD, bookings, /api/info
+models.py            SQLAlchemy models: Event, Booking
+seed.py              demo data for an empty database
+templates/index.html page layout
+static/css/style.css styles
+static/js/app.js     frontend logic (filters, modals, booking, countdown)
+Dockerfile           container image
+.github/workflows/deploy.yml   build & push pipeline
+```
+
+## API
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | `{"status": "ok", "db": "connected"}` or 503 |
+| GET | `/api/events` | upcoming events with free seats |
+| GET | `/api/events/<id>` | one event |
+| POST | `/api/events` | create an event |
+| PUT | `/api/events/<id>` | update an event |
+| DELETE | `/api/events/<id>` | delete an event and its bookings |
+| POST | `/api/events/<id>/bookings` | book seats: `{"name", "email", "tickets"}` |
+| GET | `/api/info` | region and image version |
+
+Tables `events` and `bookings` are created automatically on startup.
 
 ## Configuration
 
-Database settings come from environment variables — nothing is hardcoded.
-Copy `.env.example` to `.env` (the `.env` file is in `.gitignore` and `.dockerignore`).
+Copy `.env.example` to `.env` and fill in your values (`.env` is ignored by git and Docker).
 
-## Run in Docker
-
-Both containers are attached to one Docker network, so the app reaches the
-database by its container name (`postgres-events`) instead of `localhost`
-(inside a container `localhost` means the container itself).
-
-```powershell
-# 1. Network shared by both containers
-docker network create events-net
-
-# 2. Database container
-docker run -d --name postgres-events --network events-net -p 5433:5432 `
-  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=mysecretpassword -e POSTGRES_DB=eventsdb `
-  postgres:16
-
-# 3. Build the app image
-docker build -t events-app:v1 .
-
-# 4. App container, connected to the database through the network
-docker run -d --name events-app --network events-net -p 5000:5000 `
-  -e DATABASE_URL=postgresql+psycopg2://postgres:mysecretpassword@postgres-events:5432/eventsdb `
-  events-app:v1
+```
+DATABASE_URL=postgresql+psycopg2://<admin_login>:<admin_password>@<server-name>.postgres.database.azure.com:5432/eventsdb?sslmode=require
 ```
 
-Open http://localhost:5000 and click "Check database connection".
-
-> The database is published on host port **5433** (not 5432) to avoid conflicts
-> with another PostgreSQL already running on the machine. The app container
-> doesn't use this port — it talks to the database inside the network on 5432.
-
-## Run the app locally (without Docker for the app)
+## Run locally
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env
+copy .env.example .env      # then edit DATABASE_URL
 python app.py
 ```
 
-The database container from step 2 must be running.
+Open http://localhost:5000. When using Azure PostgreSQL, your IP must be
+allowed in the server's Networking (firewall) settings.
 
-## Useful commands
+## Run in Docker
 
 ```powershell
-docker logs events-app                                        # app logs
-docker exec -it postgres-events psql -U postgres -d eventsdb  # SQL console
-docker rm -f events-app postgres-events                       # remove containers
-docker network rm events-net                                  # remove network
+docker build --platform linux/amd64 --build-arg APP_VERSION=v1 -t eventbooking-app:v1 .
+docker run --rm -p 5001:5000 --env-file .env eventbooking-app:v1
 ```
+
+Open http://localhost:5001.
+
+## Azure deployment
+
+### Resources
+
+| Resource | Name |
+|---|---|
+| Resource group | `EventBookingApp-caca-lab` (Switzerland North) |
+| PostgreSQL Flexible Server | `eventbooking-pgdb`, database `eventsdb`, Burstable B1ms |
+| Container Registry | `eventbookingacr89973.azurecr.io` (Basic, admin user enabled) |
+| Container Apps | `eventbooking-app` in environment `eventbooking-env`, ingress on port 5000 |
+
+PostgreSQL networking: public access with "Allow public access from any Azure
+service" plus the client IP for local work. SSL is required (`sslmode=require`).
+
+### Container App settings
+
+Secrets (Security → Secrets):
+
+| Secret | Value |
+|---|---|
+| `database-url` | full `DATABASE_URL` connection string |
+| `db-password` | database password |
+
+Environment variables (Containers → Edit and deploy → Environment variables):
+
+| Variable | Source | Value |
+|---|---|---|
+| `DATABASE_URL` | Reference a secret | `database-url` |
+| `POSTGRES_PASSWORD` | Reference a secret | `db-password` |
+| `POSTGRES_USER` | Manual entry | admin login |
+| `POSTGRES_DB` | Manual entry | `eventsdb` |
+| `POSTGRES_PORT` | Manual entry | `5432` |
+
+### Manual push to ACR
+
+```powershell
+docker login eventbookingacr89973.azurecr.io
+docker build --platform linux/amd64 --build-arg APP_VERSION=v4 -t eventbooking-app:v4 .
+docker tag eventbooking-app:v4 eventbookingacr89973.azurecr.io/eventbooking-app:v4
+docker push eventbookingacr89973.azurecr.io/eventbooking-app:v4
+```
+
+## CI: GitHub Actions
+
+Workflow `.github/workflows/deploy.yml` runs on every push to `main` (or manually
+from the Actions tab):
+
+1. checks out the code,
+2. logs in to ACR,
+3. builds the image for `linux/amd64` with `APP_VERSION` = short commit SHA,
+4. pushes `eventbookingacr89973.azurecr.io/eventbooking-app:<commit-sha>`.
+
+Repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `REGISTRY_USERNAME` | ACR admin username |
+| `REGISTRY_PASSWORD` | ACR admin password |
+
+### Publishing a new version
+
+After the workflow finishes, open the Container App → **Revisions and replicas →
+Create new revision** → select the container → **Edit** → set **Image tag** to the
+new commit SHA → **Save** → **Create**. The version shown in the app's Azure block
+changes to the new commit.
+
+> The Container Apps environment runs in Express mode, so the revision name
+> suffix must be left empty.
