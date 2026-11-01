@@ -25,7 +25,7 @@ GitHub repo ──► GitHub Actions ──► Azure Container Registry ──�
  (push main)    (build & push)      eventbookingacr89973          eventbooking-app        eventbooking-pgdb
 ```
 
-- The image is built for `linux/amd64` and tagged with the commit SHA.
+- The image is built for `linux/amd64` (GitHub runners are amd64) and tagged with the commit SHA.
 - Publishing a new image to Container Apps is done manually in the portal.
 - Database credentials are never stored in the image or in git; they are
   passed as environment variables (Container Apps secrets in Azure, `.env` locally).
@@ -133,12 +133,11 @@ docker push eventbookingacr89973.azurecr.io/eventbooking-app:v4
 
 ## CI: GitHub Actions
 
-Workflow `.github/workflows/deploy.yml` runs on every push to `main` (or manually
-from the Actions tab):
+Workflow `.github/workflows/deploy.yml` runs on every push to `main`:
 
 1. checks out the code,
 2. logs in to ACR,
-3. builds the image for `linux/amd64` with `APP_VERSION` = short commit SHA,
+3. builds the image on an `ubuntu-latest` (amd64) runner,
 4. pushes `eventbookingacr89973.azurecr.io/eventbooking-app:<commit-sha>`.
 
 Repository secrets (Settings → Secrets and variables → Actions):
@@ -152,8 +151,10 @@ Repository secrets (Settings → Secrets and variables → Actions):
 
 After the workflow finishes, open the Container App → **Revisions and replicas →
 Create new revision** → select the container → **Edit** → set **Image tag** to the
-new commit SHA → **Save** → **Create**. The version shown in the app's Azure block
-changes to the new commit.
+new commit SHA → **Save** → **Create**.
+
+Images built by the workflow show version `dev` in the app's Azure block;
+images built manually with `--build-arg APP_VERSION=...` show that value.
 
 > The Container Apps environment runs in Express mode, so the revision name
 > suffix must be left empty.

@@ -4,16 +4,10 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-env:
-  REGISTRY: eventbookingacr89973.azurecr.io
-  IMAGE_NAME: eventbooking-app
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,13 +15,11 @@ jobs:
       - name: Log in to ACR
         uses: azure/docker-login@v1
         with:
-          login-server: ${{ env.REGISTRY }}
+          login-server: eventbookingacr89973.azurecr.io
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Build and push Docker image
         run: |
-          docker build --platform linux/amd64 \
-            --build-arg APP_VERSION=${GITHUB_SHA::7} \
-            -t $REGISTRY/$IMAGE_NAME:${{ github.sha }} .
-          docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
+          docker build -t eventbookingacr89973.azurecr.io/eventbooking-app:${{ github.sha }} .
+          docker push eventbookingacr89973.azurecr.io/eventbooking-app:${{ github.sha }}
