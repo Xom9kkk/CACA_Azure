@@ -199,18 +199,21 @@ def create_booking(event_id):
         return jsonify(code=code, tickets=tickets, event=event_to_dict(event, taken)), 201
 
 
-def region_from_suffix(suffix):
-    # e.g. politeforest-0f266ae4.switzerlandnorth.azurecontainerapps.io
-    parts = (suffix or "").split(".")
-    return parts[1] if len(parts) > 2 else "local"
+def region_from_host(host):
+    # e.g. eventbooking-app.politeforest-0f266ae4.switzerlandnorth.azurecontainerapps.io
+    parts = (host or "").split(":")[0].split(".")
+    if len(parts) > 3 and parts[-2:] == ["azurecontainerapps", "io"]:
+        return parts[-3]
+    return "local"
 
 
 @api.get("/info")
 def info():
+    # Express environments don't set CONTAINER_APP_* variables, so the region
+    # comes from the public host name and the replica from the container host name
     return jsonify(
-        revision=os.getenv("CONTAINER_APP_REVISION") or "local",
-        region=region_from_suffix(os.getenv("CONTAINER_APP_ENV_DNS_SUFFIX")),
-        app=os.getenv("CONTAINER_APP_NAME") or "local",
+        region=region_from_host(request.headers.get("X-Forwarded-Host") or request.host),
+        replica=os.getenv("CONTAINER_APP_REPLICA_NAME") or os.getenv("HOSTNAME") or "local",
     )
 
 

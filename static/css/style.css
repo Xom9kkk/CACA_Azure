@@ -193,7 +193,7 @@ button:focus-visible, .card:focus-visible, .cat:focus-visible { outline: 2px sol
 .cat.on { color: var(--on-acc); background: var(--acc); }
 .dates { display: flex; gap: 6px; flex-wrap: wrap; }
 .azure { display: flex; flex-direction: column; gap: 6px; line-height: 1.6; }
-.azure span { color: var(--text); text-transform: none; letter-spacing: .05em; }
+.azure span { color: var(--text); text-transform: none; letter-spacing: .05em; overflow-wrap: anywhere; }
 
 /* hero */
 .hero {

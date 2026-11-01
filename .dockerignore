@@ -1,10 +1,12 @@
-.venv/
+# Copy only what the app needs into the image
+*
+!app.py
+!api.py
+!models.py
+!seed.py
+!requirements.txt
+!templates/
+!static/
+
 __pycache__/
 *.pyc
-.git/
-.gitignore
-.env
-.vscode/
-*.zip
-
-loginandpasswordAzure.txt
